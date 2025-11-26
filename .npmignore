@@ -1,0 +1,45 @@
+# Exclude development files from npm package
+node_modules/
+src/
+test/
+tests/
+*.test.ts
+*.spec.ts
+test-*.ts
+
+# Build configuration
+tsconfig.json
+.eslintrc
+.eslintrc.json
+.prettierrc
+.prettierrc.json
+
+# Documentation sources
+*.old.md
+README.old.md
+GETTING_STARTED.md
+QUICK_REFERENCE.md
+INDEX.md
+PUBLISHING.md
+
+# Example and benchmark files
+examples.ts
+benchmark.ts
+nestjs-integration.ts
+
+# Development files
+.git/
+.gitignore
+.DS_Store
+.vscode/
+.idea/
+
+# Test and coverage
+coverage/
+.nyc_output/
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
