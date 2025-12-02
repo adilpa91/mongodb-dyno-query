@@ -14,7 +14,7 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["query-builder.ts", "query-config-manager.ts"],
+  "include": ["query-builder.ts"],
   "exclude": [
     "node_modules",
     "dist",
@@ -23,6 +23,7 @@
     "test-*.ts",
     "examples.ts",
     "benchmark.ts",
-    "nestjs-integration.ts"
+    "nestjs-integration.ts",
+    "query-config-manager.ts"
   ]
 }
