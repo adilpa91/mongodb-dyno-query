@@ -15,18 +15,18 @@ export function example1_SimpleQuery() {
 
   const config: QueryConfig = {
     staticFilters: {
-      status: 'completed',
-      programGroup: 'CMR'
+      status: 'active',
+      channel: 'online'
     },
     fieldMappings: {
-      accountId: 'accountId',
-      caseId: 'caseId'
+      customerId: 'customerId',
+      orderId: 'orderId'
     }
   };
 
   const data = {
-    accountId: '12345',
-    caseId: '67890'
+    customerId: 'cust-12345',
+    orderId: 'order-67890'
   };
 
   const query = QueryBuilder.build(config, data);
@@ -34,10 +34,10 @@ export function example1_SimpleQuery() {
   
   // Output:
   // {
-  //   "status": "completed",
-  //   "programGroup": "CMR",
-  //   "accountId": "12345",
-  //   "caseId": "67890"
+  //   "status": "active",
+  //   "channel": "online",
+  //   "customerId": "cust-12345",
+  //   "orderId": "order-67890"
   // }
 }
 
@@ -49,27 +49,27 @@ export function example2_DateRanges() {
 
   const config: QueryConfig = {
     staticFilters: {
-      status: 'completed'
+      status: 'fulfilled'
     },
     fieldMappings: {
-      accountId: 'accountId'
+      customerId: 'customerId'
     },
     dateRanges: [
-      { field: 'encounterDate' },
-      { field: 'updatedAt' },
+      { field: 'orderDate' },
+      { field: 'lastUpdated' },
       { field: 'createdAt' },
-      { field: 'completedAt' }
+      { field: 'deliveredAt' }
     ]
   };
 
   const data = {
-    accountId: '12345',
-    encounterDate: {
-      from: new Date('2024-01-01'),
-      to: new Date('2024-12-31')
+    customerId: 'cust-12345',
+    orderDate: {
+      from: new Date('2025-01-01'),
+      to: new Date('2025-06-30')
     },
-    updatedAt: {
-      from: new Date('2024-06-01')
+    lastUpdated: {
+      from: new Date('2025-04-01')
       // No 'to' - still works
     }
     // createdAt and completedAt not provided - will be excluded
@@ -80,14 +80,14 @@ export function example2_DateRanges() {
   
   // Output:
   // {
-  //   "status": "completed",
-  //   "accountId": "12345",
-  //   "encounterDate": {
-  //     "$gte": "2024-01-01",
-  //     "$lte": "2024-12-31"
+  //   "status": "fulfilled",
+  //   "customerId": "cust-12345",
+  //   "orderDate": {
+  //     "$gte": "2025-01-01",
+  //     "$lte": "2025-06-30"
   //   },
-  //   "updatedAt": {
-  //     "$gte": "2024-06-01"
+  //   "lastUpdated": {
+  //     "$gte": "2025-04-01"
   //   }
   // }
 }
@@ -203,28 +203,28 @@ export function example5_NestedConditions() {
 }
 
 // ============================================================================
-// Example 6: Advanced Healthcare Case Query
+// Example 6: Advanced Order Query
 // ============================================================================
-export function example6_HealthcareCaseQuery() {
-  console.log('\n=== Example 6: Healthcare Case Query ===\n');
+export function example6_AdvancedOrderQuery() {
+  console.log('\n=== Example 6: Advanced Order Query ===\n');
 
   const config: QueryConfig = {
     staticFilters: {
-      programGroup: 'CMR',
-      deleted: false
+      channel: 'online',
+      archived: false
     },
     fieldMappings: {
-      accountId: 'accountId',
-      caseId: 'caseId'
+      customerId: 'customerId',
+      orderId: 'orderId'
     },
     dateRanges: [
-      { field: 'encounterDate' },
-      { field: 'updatedAt' },
+      { field: 'orderDate' },
+      { field: 'lastUpdated' },
       { field: 'createdAt' }
     ],
     conditions: [
       or(
-        field('status', Operator.EQ, 'completed'),
+        field('status', Operator.EQ, 'fulfilled'),
         and(
           field('status', Operator.EQ, 'in-progress'),
           field('priority', Operator.GTE, '$minPriority')
@@ -234,11 +234,11 @@ export function example6_HealthcareCaseQuery() {
   };
 
   const data = {
-    accountId: 'acc-12345',
-    caseId: 'case-67890',
-    encounterDate: {
-      from: new Date('2024-01-01'),
-      to: new Date('2024-12-31')
+    customerId: 'cust-12345',
+    orderId: 'order-67890',
+    orderDate: {
+      from: new Date('2025-01-01'),
+      to: new Date('2025-06-30')
     },
     minPriority: 3
   };
@@ -256,10 +256,10 @@ export function example7_ArrayOperations() {
   const config: QueryConfig = {
     conditions: [
       field('tags', Operator.ALL, ['urgent', 'review']),
-      field('medications', Operator.SIZE, 3),
-      field('history', Operator.ELEM_MATCH, {
+      field('items', Operator.SIZE, 3),
+      field('activity', Operator.ELEM_MATCH, {
         status: 'completed',
-        date: { $gte: new Date('2024-01-01') }
+        date: { $gte: new Date('2025-01-01') }
       })
     ]
   };
@@ -271,12 +271,12 @@ export function example7_ArrayOperations() {
   // {
   //   "$and": [
   //     { "tags": { "$all": ["urgent", "review"] } },
-  //     { "medications": { "$size": 3 } },
+  //     { "items": { "$size": 3 } },
   //     {
-  //       "history": {
+  //       "activity": {
   //         "$elemMatch": {
   //           "status": "completed",
-  //           "date": { "$gte": "2024-01-01" }
+  //           "date": { "$gte": "2025-01-01" }
   //         }
   //       }
   //     }
@@ -292,13 +292,13 @@ export function example8_TextSearch() {
 
   const config: QueryConfig = {
     conditions: [
-      field('patientName', Operator.REGEX, '$searchTerm'),
+      field('customerName', Operator.REGEX, '$searchTerm'),
       field('status', Operator.NE, 'deleted')
     ]
   };
 
   const data = {
-    searchTerm: '^John.*Smith$'
+    searchTerm: '^Alex.*River$'
   };
 
   const query = QueryBuilder.build(config, data);
@@ -307,7 +307,7 @@ export function example8_TextSearch() {
   // Output:
   // {
   //   "$and": [
-  //     { "patientName": { "$regex": "^John.*Smith$" } },
+  //     { "customerName": { "$regex": "^Alex.*River$" } },
   //     { "status": { "$ne": "deleted" } }
   //   ]
   // }
@@ -319,7 +319,7 @@ export function example8_TextSearch() {
 export function example9_NorConditions() {
   console.log('\n=== Example 9: NOR Conditions ===\n');
 
-  // Query: Find cases that are neither deleted nor archived
+  // Query: Find records that are neither deleted nor archived
   const config: QueryConfig = {
     conditions: [
       nor(
@@ -351,7 +351,7 @@ export function example10_RoleBasedQuery() {
 
   const config: QueryConfig = {
     staticFilters: {
-      programGroup: 'CMR'
+      accessLevel: 'standard'
     },
     conditions: [
       or(
@@ -362,7 +362,7 @@ export function example10_RoleBasedQuery() {
           field('role', Operator.EQ, 'manager'),
           field('teamId', Operator.EQ, '$userTeamId')
         ),
-        // Regular user can only see assigned cases
+        // Regular user can only see their assigned items
         and(
           field('role', Operator.EQ, 'user'),
           field('assignedTo', Operator.EQ, '$userId')
@@ -399,29 +399,29 @@ export async function example11_WithConfigManager() {
 
   // Save a configuration
   await configManager.saveConfig({
-    name: 'case-query',
-    description: 'Standard case query with filters',
-    tags: ['healthcare', 'cases'],
+    name: 'order-query',
+    description: 'Standard order query with filters',
+    tags: ['orders', 'reporting'],
     staticFilters: {
-      programGroup: 'CMR',
-      deleted: false
+      channel: 'online',
+      archived: false
     },
     fieldMappings: {
-      accountId: 'accountId',
-      caseId: 'caseId'
+      customerId: 'customerId',
+      orderId: 'orderId'
     },
     dateRanges: [
-      { field: 'encounterDate' },
-      { field: 'updatedAt' }
+      { field: 'orderDate' },
+      { field: 'lastUpdated' }
     ]
   });
 
   // Build query using saved configuration
-  const query = await configManager.buildQuery('case-query', {
-    accountId: 'acc-123',
-    encounterDate: {
-      from: new Date('2024-01-01'),
-      to: new Date('2024-12-31')
+  const query = await configManager.buildQuery('order-query', {
+    customerId: 'cust-123',
+    orderDate: {
+      from: new Date('2025-01-01'),
+      to: new Date('2025-06-30')
     }
   });
 
@@ -484,7 +484,7 @@ export function runAllExamples() {
   example3_AndConditions();
   example4_OrConditions();
   example5_NestedConditions();
-  example6_HealthcareCaseQuery();
+  example6_AdvancedOrderQuery();
   example7_ArrayOperations();
   example8_TextSearch();
   example9_NorConditions();

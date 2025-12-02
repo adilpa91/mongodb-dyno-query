@@ -29,21 +29,21 @@ import { QueryBuilder, Operator, field } from 'mongodb-dyno-query';
 
 const config = {
   staticFilters: {
-    status: 'completed'
+    status: 'active'
   },
   fieldMappings: {
-    accountId: 'accountId'
+    customerId: 'customerId'
   },
   dateRanges: [
-    { field: 'createdAt' }
+    { field: 'orderDate' }
   ]
 };
 
 const data = {
-  accountId: '12345',
-  createdAt: {
-    from: new Date('2024-01-01'),
-    to: new Date('2024-12-31')
+  customerId: 'cust-12345',
+  orderDate: {
+    from: new Date('2025-01-01'),
+    to: new Date('2025-06-30')
   }
 };
 
@@ -54,11 +54,11 @@ const results = await collection.find(query).toArray();
 **Generated Query:**
 ```javascript
 {
-  status: "completed",
-  accountId: "12345",
-  createdAt: {
-    $gte: "2024-01-01T00:00:00.000Z",
-    $lte: "2024-12-31T00:00:00.000Z"
+  status: "active",
+  customerId: "cust-12345",
+  orderDate: {
+    $gte: "2025-01-01T00:00:00.000Z",
+    $lte: "2025-06-30T00:00:00.000Z"
   }
 }
 ```
@@ -96,14 +96,14 @@ Simple one-to-one mappings from input data:
 ```typescript
 const config = {
   fieldMappings: {
-    accountId: 'accountId',
-    userId: 'user.id'  // Supports nested paths
+    customerId: 'customerId',
+    profileId: 'profile.id'  // Supports nested paths
   }
 };
 
 const data = {
-  accountId: '12345',
-  user: { id: 'user-001' }
+  customerId: 'cust-12345',
+  profile: { id: 'profile-001' }
 };
 ```
 
@@ -114,18 +114,18 @@ Optional date ranges with `$gte` and `$lte`:
 ```typescript
 const config = {
   dateRanges: [
-    { field: 'createdAt' },
-    { field: 'updatedAt' }
+    { field: 'orderDate' },
+    { field: 'lastUpdated' }
   ]
 };
 
 const data = {
-  createdAt: {
-    from: new Date('2024-01-01'),  // $gte
-    to: new Date('2024-12-31')     // $lte
+  orderDate: {
+    from: new Date('2025-01-01'),  // $gte
+    to: new Date('2025-06-30')     // $lte
   },
-  updatedAt: {
-    from: new Date('2024-06-01')   // Only from, to is optional
+  lastUpdated: {
+    from: new Date('2025-03-01')   // Only from, to is optional
   }
 };
 ```
@@ -140,10 +140,10 @@ import { field, or, and, Operator } from 'mongodb-dyno-query';
 const config = {
   conditions: [
     or(
-      field('priority', Operator.EQ, 'urgent'),
+      field('priority', Operator.EQ, 'high'),
       and(
         field('status', Operator.EQ, 'pending'),
-        field('assignedTo', Operator.EXISTS, true)
+        field('assigneeId', Operator.EXISTS, true)
       )
     )
   ]
@@ -215,25 +215,25 @@ const data = {
 ```typescript
 const config = {
   staticFilters: {
-    status: 'completed',
-    tag: { $ne: 'therapeutic_interchange' },
-    programGroup: { $in: ['CMR', 'TMR'] }
+    status: 'fulfilled',
+    category: { $nin: ['internal', 'archived'] },
+    channel: { $in: ['online', 'retail'] }
   },
   fieldMappings: {
-    accountId: 'accountId',
-    caseId: 'caseId'
+    customerId: 'customerId',
+    orderId: 'orderId'
   },
   dateRanges: [
-    { field: 'encounterDate' }
+    { field: 'orderDate' }
   ]
 };
 
 const data = {
-  accountId: 'acc-12345',
-  caseId: 'case-67890',
-  encounterDate: {
-    from: new Date('2024-01-01'),
-    to: new Date('2024-12-31')
+  customerId: 'cust-45678',
+  orderId: 'order-98765',
+  orderDate: {
+    from: new Date('2025-01-01'),
+    to: new Date('2025-06-30')
   }
 };
 
@@ -243,14 +243,14 @@ const query = QueryBuilder.build(config, data);
 **Generated Query:**
 ```javascript
 {
-  status: 'completed',
-  tag: { $ne: 'therapeutic_interchange' },
-  programGroup: { $in: ['CMR', 'TMR'] },
-  accountId: 'acc-12345',
-  caseId: 'case-67890',
-  encounterDate: {
-    $gte: '2024-01-01T00:00:00.000Z',
-    $lte: '2024-12-31T00:00:00.000Z'
+  status: 'fulfilled',
+  category: { $nin: ['internal', 'archived'] },
+  channel: { $in: ['online', 'retail'] },
+  customerId: 'cust-45678',
+  orderId: 'order-98765',
+  orderDate: {
+    $gte: '2025-01-01T00:00:00.000Z',
+    $lte: '2025-06-30T00:00:00.000Z'
   }
 }
 ```
@@ -267,19 +267,19 @@ async function queryDatabase() {
   const db = client.db('myapp');
   
   const config = {
-    staticFilters: { status: 'completed' },
+    staticFilters: { status: 'active' },
     conditions: [
-      field('programGroups', Operator.IN, '$programGroups')
+      field('segments', Operator.IN, '$customerSegments')
     ],
     dateRanges: [
-      { field: 'createdAt' }
+      { field: 'lastPurchase' }
     ]
   };
 
   const data = {
-    programGroups: ['CMR', 'CCM'],
-    createdAt: {
-      from: new Date('2024-01-01')
+    customerSegments: ['vip', 'subscriber'],
+    lastPurchase: {
+      from: new Date('2025-01-01')
     }
   };
 
@@ -297,21 +297,21 @@ Store configs as JSON:
 ```json
 {
   "staticFilters": {
-    "status": "completed",
-    "tag": { "$ne": "therapeutic_interchange" }
+    "status": "fulfilled",
+    "category": { "$nin": ["internal", "archived"] }
   },
   "fieldMappings": {
-    "accountId": "accountId",
-    "caseId": "caseId"
+    "customerId": "customerId",
+    "orderId": "orderId"
   },
   "dateRanges": [
-    { "field": "encounterDate" }
+    { "field": "orderDate" }
   ],
   "conditions": [
     {
-      "field": "programGroup",
+      "field": "channel",
       "operator": "$in",
-      "value": ["CMR", "TMR"]
+      "value": ["online", "retail"]
     }
   ]
 }

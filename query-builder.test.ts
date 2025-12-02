@@ -507,21 +507,21 @@ describe('QueryBuilder', () => {
   // ============================================================================
   
   describe('Complex Real-World Scenarios', () => {
-    it('should build healthcare case query', () => {
+    it('should build advanced order query', () => {
       const config: QueryConfig = {
         staticFilters: {
-          programGroup: 'CMR',
-          deleted: false
+          channel: 'online',
+          archived: false
         },
         fieldMappings: {
-          accountId: 'accountId'
+          customerId: 'customerId'
         },
         dateRanges: [
-          { field: 'encounterDate' }
+          { field: 'orderDate' }
         ],
         conditions: [
           or(
-            field('status', Operator.EQ, 'completed'),
+            field('status', Operator.EQ, 'fulfilled'),
             and(
               field('status', Operator.EQ, 'in-progress'),
               field('priority', Operator.GTE, '$minPriority')
@@ -531,20 +531,20 @@ describe('QueryBuilder', () => {
       };
 
       const data = {
-        accountId: 'acc-123',
-        encounterDate: {
-          from: new Date('2024-01-01'),
-          to: new Date('2024-12-31')
+        customerId: 'cust-123',
+        orderDate: {
+          from: new Date('2025-01-01'),
+          to: new Date('2025-06-30')
         },
         minPriority: 3
       };
 
       const query = QueryBuilder.build(config, data);
 
-      expect(query.programGroup).toEqual('CMR');
-      expect(query.deleted).toEqual(false);
-      expect(query.accountId).toEqual('acc-123');
-      expect(query.encounterDate).toBeDefined();
+      expect(query.channel).toEqual('online');
+      expect(query.archived).toEqual(false);
+      expect(query.customerId).toEqual('cust-123');
+      expect(query.orderDate).toBeDefined();
       expect(query.$or).toBeDefined();
     });
 
