@@ -6,6 +6,7 @@
 
 import { MongoClient, Db, Collection } from 'mongodb';
 import { QueryBuilder, QueryConfig } from './query-builder';
+import { validateConfig } from './validation';
 
 export interface StoredQueryConfig extends QueryConfig {
   name: string;
@@ -32,21 +33,33 @@ export class QueryConfigManager {
    * Save or update a query configuration
    */
   async saveConfig(config: StoredQueryConfig): Promise<void> {
-    config.updatedAt = new Date();
-    
-    if (!config.createdAt) {
-      config.createdAt = new Date();
+    if (!config.name) {
+      throw new Error('Configuration name is required');
     }
 
-    await this.collection.updateOne(
-      { name: config.name },
-      { $set: config },
-      { upsert: true }
-    );
+    // Validate config before saving
+    validateConfig(config);
 
-    // Update cache
-    if (this.cacheEnabled) {
-      this.cache.set(config.name, config);
+    const now = new Date();
+    config.updatedAt = now;
+
+    if (!config.createdAt) {
+      config.createdAt = now;
+    }
+
+    try {
+      await this.collection.updateOne(
+        { name: config.name },
+        { $set: config },
+        { upsert: true }
+      );
+
+      // Update cache
+      if (this.cacheEnabled) {
+        this.cache.set(config.name, config);
+      }
+    } catch (error) {
+      throw new Error(`Failed to save configuration '${config.name}': ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -59,13 +72,17 @@ export class QueryConfigManager {
       return this.cache.get(name)!;
     }
 
-    const config = await this.collection.findOne({ name });
-    
-    if (config && this.cacheEnabled) {
-      this.cache.set(name, config);
-    }
+    try {
+      const config = await this.collection.findOne({ name });
 
-    return config;
+      if (config && this.cacheEnabled) {
+        this.cache.set(name, config);
+      }
+
+      return config;
+    } catch (error) {
+      throw new Error(`Failed to retrieve configuration '${name}': ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -73,7 +90,7 @@ export class QueryConfigManager {
    */
   async buildQuery(configName: string, data: Record<string, any>): Promise<Record<string, any>> {
     const config = await this.getConfig(configName);
-    
+
     if (!config) {
       throw new Error(`Query configuration '${configName}' not found`);
     }
@@ -86,25 +103,33 @@ export class QueryConfigManager {
    */
   async listConfigs(filter?: { tags?: string[] }): Promise<StoredQueryConfig[]> {
     const query: any = {};
-    
+
     if (filter?.tags && filter.tags.length > 0) {
       query.tags = { $in: filter.tags };
     }
 
-    return await this.collection.find(query).toArray();
+    try {
+      return await this.collection.find(query).toArray();
+    } catch (error) {
+      throw new Error(`Failed to list configurations: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
    * Delete a configuration
    */
   async deleteConfig(name: string): Promise<boolean> {
-    const result = await this.collection.deleteOne({ name });
-    
-    if (this.cacheEnabled) {
-      this.cache.delete(name);
-    }
+    try {
+      const result = await this.collection.deleteOne({ name });
 
-    return result.deletedCount > 0;
+      if (this.cacheEnabled) {
+        this.cache.delete(name);
+      }
+
+      return result.deletedCount > 0;
+    } catch (error) {
+      throw new Error(`Failed to delete configuration '${name}': ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -120,9 +145,15 @@ export class QueryConfigManager {
   async preloadCache(): Promise<void> {
     if (!this.cacheEnabled) return;
 
-    const configs = await this.collection.find({}).toArray();
-    configs.forEach(config => {
-      this.cache.set(config.name, config);
-    });
+    try {
+      const configs = await this.collection.find({}).toArray();
+      this.cache.clear(); // Clear existing cache before reloading
+      configs.forEach((config: StoredQueryConfig) => {
+        this.cache.set(config.name, config);
+      });
+    } catch (error) {
+      // Log error but don't fail, as this is an optimization
+      console.error(`Failed to preload cache: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }

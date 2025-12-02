@@ -6,6 +6,8 @@
  * and nested queries.
  */
 
+import { validateConfig } from './validation';
+
 export enum Operator {
   // Comparison
   EQ = '$eq',
@@ -16,20 +18,20 @@ export enum Operator {
   LTE = '$lte',
   IN = '$in',
   NIN = '$nin',
-  
+
   // Logical
   AND = '$and',
   OR = '$or',
   NOT = '$not',
   NOR = '$nor',
-  
+
   // Element
   EXISTS = '$exists',
   TYPE = '$type',
-  
+
   // String/Pattern
   REGEX = '$regex',
-  
+
   // Array
   ALL = '$all',
   ELEM_MATCH = '$elemMatch',
@@ -58,13 +60,13 @@ export type QueryCondition = FieldCondition | LogicalCondition | DateRangeCondit
 export interface QueryConfig {
   // Static filters (always applied)
   staticFilters?: Record<string, any>;
-  
+
   // Dynamic conditions
   conditions?: QueryCondition[];
-  
+
   // Simple field mappings
   fieldMappings?: Record<string, any>;
-  
+
   // Date range fields
   dateRanges?: DateRangeCondition[];
 }
@@ -77,7 +79,13 @@ export class QueryBuilder {
    * @param data - Input data to inject into the query
    * @returns MongoDB query object
    */
-  static build(config: QueryConfig, data: Record<string, any> = {}): Record<string, any> {
+  static build<T extends Record<string, any> = Record<string, any>>(
+    config: QueryConfig,
+    data: T = {} as T
+  ): Record<string, any> {
+    // Validate config at runtime
+    validateConfig(config);
+
     const query: Record<string, any> = {};
 
     // 1. Apply static filters
@@ -87,23 +95,12 @@ export class QueryBuilder {
 
     // 2. Apply field mappings (simple key-value pairs)
     if (config.fieldMappings) {
-      for (const [field, dataKey] of Object.entries(config.fieldMappings)) {
-        const value = this.getNestedValue(data, dataKey);
-        if (value !== undefined && value !== null) {
-          query[field] = value;
-        }
-      }
+      this.applyFieldMappings(query, config.fieldMappings, data);
     }
 
     // 3. Apply date ranges
     if (config.dateRanges) {
-      for (const dateRange of config.dateRanges) {
-        const rangeData = this.getNestedValue(data, dateRange.field);
-        const dateQuery = this.buildDateRange(dateRange, rangeData);
-        if (dateQuery) {
-          Object.assign(query, dateQuery);
-        }
-      }
+      this.applyDateRanges(query, config.dateRanges, data);
     }
 
     // 4. Apply complex conditions
@@ -117,6 +114,25 @@ export class QueryBuilder {
     return query;
   }
 
+  private static applyFieldMappings(query: Record<string, any>, mappings: Record<string, any>, data: any) {
+    for (const [field, dataKey] of Object.entries(mappings)) {
+      const value = this.getNestedValue(data, dataKey);
+      if (value !== undefined && value !== null) {
+        query[field] = value;
+      }
+    }
+  }
+
+  private static applyDateRanges(query: Record<string, any>, dateRanges: DateRangeCondition[], data: any) {
+    for (const dateRange of dateRanges) {
+      const rangeData = this.getNestedValue(data, dateRange.field);
+      const dateQuery = this.buildDateRange(dateRange, rangeData);
+      if (dateQuery) {
+        Object.assign(query, dateQuery);
+      }
+    }
+  }
+
   /**
    * Build conditions recursively
    */
@@ -128,30 +144,9 @@ export class QueryBuilder {
     const andConditions: any[] = [];
 
     for (const condition of conditions) {
-      // Check if it's a logical condition
-      if ('operator' in condition && this.isLogicalOperator(condition.operator)) {
-        const logicalCondition = condition as LogicalCondition;
-        const nestedQuery = this.buildLogicalCondition(logicalCondition, data);
-        if (nestedQuery) {
-          andConditions.push(nestedQuery);
-        }
-      }
-      // Check if it's a date range condition
-      else if ('from' in condition || 'to' in condition) {
-        const dateCondition = condition as DateRangeCondition;
-        const rangeData = this.getNestedValue(data, dateCondition.field);
-        const dateQuery = this.buildDateRange(dateCondition, rangeData);
-        if (dateQuery) {
-          andConditions.push(dateQuery);
-        }
-      }
-      // It's a field condition
-      else {
-        const fieldCondition = condition as FieldCondition;
-        const fieldQuery = this.buildFieldCondition(fieldCondition, data);
-        if (fieldQuery) {
-          andConditions.push(fieldQuery);
-        }
+      const result = this.processCondition(condition, data);
+      if (result) {
+        andConditions.push(result);
       }
     }
 
@@ -164,6 +159,23 @@ export class QueryBuilder {
     return query;
   }
 
+  private static processCondition(condition: QueryCondition, data: Record<string, any>): Record<string, any> | null {
+    // Check if it's a logical condition
+    if ('operator' in condition && this.isLogicalOperator(condition.operator)) {
+      return this.buildLogicalCondition(condition as LogicalCondition, data);
+    }
+    // Check if it's a date range condition
+    else if ('from' in condition || 'to' in condition) {
+      const dateCondition = condition as DateRangeCondition;
+      const rangeData = this.getNestedValue(data, dateCondition.field);
+      return this.buildDateRange(dateCondition, rangeData);
+    }
+    // It's a field condition
+    else {
+      return this.buildFieldCondition(condition as FieldCondition, data);
+    }
+  }
+
   /**
    * Build a logical condition (AND, OR, NOR)
    */
@@ -174,18 +186,7 @@ export class QueryBuilder {
     const builtConditions: any[] = [];
 
     for (const subCondition of condition.conditions) {
-      let result: Record<string, any> | null = null;
-
-      if ('operator' in subCondition && this.isLogicalOperator(subCondition.operator)) {
-        result = this.buildLogicalCondition(subCondition as LogicalCondition, data);
-      } else if ('from' in subCondition || 'to' in subCondition) {
-        const dateCondition = subCondition as DateRangeCondition;
-        const rangeData = this.getNestedValue(data, dateCondition.field);
-        result = this.buildDateRange(dateCondition, rangeData);
-      } else {
-        result = this.buildFieldCondition(subCondition as FieldCondition, data);
-      }
-
+      const result = this.processCondition(subCondition, data);
       if (result && Object.keys(result).length > 0) {
         builtConditions.push(result);
       }
@@ -215,7 +216,7 @@ export class QueryBuilder {
     if (typeof condition.value === 'string' && condition.value.startsWith('$')) {
       const dataKey = condition.value.substring(1);
       value = this.getNestedValue(data, dataKey);
-      
+
       // Skip if value is undefined or null (optional field)
       if (value === undefined || value === null) {
         return null;
@@ -267,7 +268,19 @@ export class QueryBuilder {
    * Get nested value from object using dot notation
    */
   private static getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+    if (!path || !obj) return undefined;
+    if (path.indexOf('.') === -1) {
+      return obj[path];
+    }
+    const keys = path.split('.');
+    let current = obj;
+    for (const key of keys) {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      current = current[key];
+    }
+    return current;
   }
 
   /**

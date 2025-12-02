@@ -1,6 +1,6 @@
 {
   "name": "mongodb-dyno-query",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A powerful, flexible, and type-safe query building engine for MongoDB with support for dynamic conditions, date ranges, and complex AND/OR logic",
   "main": "dist/query-builder.js",
   "types": "dist/query-builder.d.ts",
@@ -43,7 +43,9 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "zod": "^4.1.13"
+  },
   "devDependencies": {
     "@types/jest": "^29.5.0",
     "@types/node": "^20.0.0",
